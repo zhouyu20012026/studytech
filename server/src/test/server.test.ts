@@ -48,6 +48,16 @@ describe('inventory api', () => {
     expect(response.body.activeItems).toBeGreaterThan(0)
   })
 
+  it('returns recent security logs for authenticated users', async () => {
+    const response = await request(app).get('/api/admin/security/logs').set('Authorization', `Bearer ${token}`)
+    expect(response.status).toBe(200)
+    expect(Array.isArray(response.body)).toBe(true)
+    expect(response.body[0]).toMatchObject({
+      eventType: 'login_success',
+      outcome: 'ok',
+    })
+  })
+
   it('creates, moves, and archives an item', async () => {
     const createResponse = await request(app)
       .post('/api/items')

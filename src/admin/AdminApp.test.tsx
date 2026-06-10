@@ -11,6 +11,7 @@ vi.mock('../api/client', () => ({
     login: vi.fn(),
     getInventory: vi.fn(),
     getAdminSummary: vi.fn(),
+    getSecurityLogs: vi.fn(),
     archiveItem: vi.fn(),
   },
 }))
@@ -29,6 +30,7 @@ describe('AdminApp', () => {
       members: 3,
       recentMovements: initialInventory.movements,
     })
+    vi.mocked(apiClient.getSecurityLogs).mockResolvedValue([])
     vi.mocked(apiClient.archiveItem).mockResolvedValue(initialInventory)
   })
 
@@ -54,8 +56,8 @@ describe('AdminApp', () => {
 
     render(<AdminApp />)
 
-    expect(await screen.findByRole('heading', { name: '家庭物品后台' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '后台安全登录' })).toBeInTheDocument()
     expect(screen.getByLabelText('邮箱')).toHaveValue('admin@example.com')
-    expect(screen.getByLabelText('密码')).toHaveValue('admin12345')
+    expect(screen.getByLabelText('密码')).toHaveValue('')
   })
 })

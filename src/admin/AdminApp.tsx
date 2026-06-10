@@ -14,7 +14,11 @@ type AdminSummary = {
 
 export function AdminApp() {
   const [email, setEmail] = useState('admin@example.com')
-  const [password, setPassword] = useState('admin12345')
+  const [password, setPassword] = useState('')
+  const [resetCode, setResetCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [showReset, setShowReset] = useState(false)
+  const [securityLogs, setSecurityLogs] = useState<Array<{ id: string; eventType: string; outcome: string; createdAt: string }>>([])
   const [inventory, setInventory] = useState<InventoryState | null>(null)
   const [summary, setSummary] = useState<AdminSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -28,9 +32,10 @@ export function AdminApp() {
     setError(null)
 
     try {
-      const [nextInventory, nextSummary] = await Promise.all([apiClient.getInventory(), apiClient.getAdminSummary()])
+      const [nextInventory, nextSummary, nextLogs] = await Promise.all([apiClient.getInventory(), apiClient.getAdminSummary(), apiClient.getSecurityLogs().catch(() => [])])
       setInventory(nextInventory)
       setSummary(nextSummary)
+      setSecurityLogs(nextLogs)
     } catch {
       setInventory(null)
       setSummary(null)
@@ -59,6 +64,27 @@ export function AdminApp() {
     }
   }
 
+  async function requestReset() {
+    setError(null)
+    await apiClient.forgotPassword(email)
+    setShowReset(true)
+  }
+
+  async function resetPassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError(null)
+    try {
+      await apiClient.resetPassword(email, resetCode, newPassword)
+      setShowReset(false)
+      setPassword('')
+      setNewPassword('')
+      setResetCode('')
+      setError('密码已重置，请使用新密码登录')
+    } catch {
+      setError('验证码无效或新密码不符合要求')
+    }
+  }
+
   async function archive(itemId: string) {
     await apiClient.archiveItem(itemId)
     await load()
@@ -67,20 +93,35 @@ export function AdminApp() {
   if (!inventory) {
     return (
       <main className="admin-shell">
-        <form className="admin-login" onSubmit={login}>
-          <h1>家庭物品后台</h1>
+        <form className="admin-login" onSubmit={showReset ? resetPassword : login}>
+          <h1>后台安全登录</h1>
           {error && <p className="admin-error">{error}</p>}
           <label>
             邮箱
             <input value={email} onChange={(event) => setEmail(event.target.value)} />
           </label>
-          <label>
-            密码
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
-          </label>
-          <button type="submit" disabled={loading}>
-            登录
-          </button>
+          {showReset ? (
+            <>
+              <label>
+                邮箱验证码
+                <input value={resetCode} onChange={(event) => setResetCode(event.target.value)} />
+              </label>
+              <label>
+                新密码
+                <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+              </label>
+              <button type="submit" disabled={loading}>重置密码</button>
+            </>
+          ) : (
+            <>
+              <label>
+                密码
+                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+              </label>
+              <button type="submit" disabled={loading}>登录</button>
+            </>
+          )}
+          <button type="button" className="admin-link-button" onClick={() => void requestReset()}>忘记密码</button>
         </form>
       </main>
     )
@@ -150,6 +191,18 @@ export function AdminApp() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="admin-panel">
+        <h2>安全日志</h2>
+        <ul className="movement-list">
+          {securityLogs.slice(0, 8).map((log) => (
+            <li key={log.id}>
+              <span>{log.eventType}</span>
+              <span>{log.outcome}</span>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section className="admin-panel">

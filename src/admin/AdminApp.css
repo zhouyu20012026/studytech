@@ -180,3 +180,10 @@
     display: grid;
   }
 }
+
+.admin-link-button {
+  background: transparent !important;
+  color: #176b87 !important;
+  padding: 0 !important;
+  text-align: left;
+}

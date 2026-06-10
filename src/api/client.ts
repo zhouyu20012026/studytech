@@ -6,6 +6,7 @@ const tokenKey = 'home_inventory_token'
 async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem(tokenKey)
   const response = await fetch(`${apiBaseUrl}${path}`, {
+    credentials: 'include',
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -28,10 +29,10 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> 
 }
 
 export const apiClient = {
-  async login(email: string, password: string) {
+  async login(email: string, password: string, captcha?: string) {
     const response = await requestJson<LoginResponse>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, captcha }),
     })
     localStorage.setItem(tokenKey, response.token)
     return response
@@ -58,6 +59,21 @@ export const apiClient = {
     return requestJson<InventoryState>(`/api/items/${itemId}/archive`, {
       method: 'POST',
     })
+  },
+  forgotPassword(email: string) {
+    return requestJson<{ ok: boolean }>('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) })
+  },
+  resetPassword(email: string, code: string, password: string) {
+    return requestJson<{ ok: boolean }>('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, code, password }) })
+  },
+  changePassword(currentPassword: string, password: string) {
+    return requestJson<{ ok: boolean }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, password }) })
+  },
+  logoutAll() {
+    return requestJson<void>('/api/auth/logout-all', { method: 'POST' })
+  },
+  getSecurityLogs() {
+    return requestJson<Array<{ id: string; email: string | null; eventType: string; outcome: string; ip: string | null; createdAt: string }>>('/api/admin/security/logs')
   },
   getAdminSummary() {
     return requestJson<{
