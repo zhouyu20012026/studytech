@@ -7,6 +7,7 @@ import { errorHandler } from './errors.js'
 import { adminRoutes } from './routes/adminRoutes.js'
 import { authRoutes } from './routes/authRoutes.js'
 import { inventoryRoutes } from './routes/inventoryRoutes.js'
+import { passwordRoutes } from './routes/passwordRoutes.js'
 
 export function createApp() {
   const app = express()
@@ -22,6 +23,7 @@ export function createApp() {
   })
 
   app.use('/api/auth', authRoutes)
+  app.use('/api/auth', passwordRoutes)
   app.use('/api/admin', adminRoutes)
   app.use('/api', inventoryRoutes)
 
