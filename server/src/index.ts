@@ -1,4 +1,6 @@
+import cookieParser from 'cookie-parser'
 import cors from 'cors'
+import helmet from 'helmet'
 import express from 'express'
 import { config } from './config.js'
 import { errorHandler } from './errors.js'
@@ -9,7 +11,10 @@ import { inventoryRoutes } from './routes/inventoryRoutes.js'
 export function createApp() {
   const app = express()
 
+  app.set('trust proxy', 1)
+  app.use(helmet())
   app.use(cors({ origin: config.CORS_ORIGIN, credentials: true }))
+  app.use(cookieParser())
   app.use(express.json({ limit: '1mb' }))
 
   app.get('/api/health', (_request, response) => {
