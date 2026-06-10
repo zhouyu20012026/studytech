@@ -1,0 +1,16 @@
+[Unit]
+Description=StudyTech Home Inventory API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/studytech/server
+EnvironmentFile=/opt/studytech/.env
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=5
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target

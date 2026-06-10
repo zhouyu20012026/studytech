@@ -2,6 +2,8 @@
 
 This deploys PostgreSQL, the Node API, and the web admin page on an Ubuntu server with Docker Compose.
 
+If Docker cannot be installed on the server, use [BARE_METAL_UBUNTU.md](./BARE_METAL_UBUNTU.md) instead.
+
 ## 1. Install Docker
 
 ```bash
