@@ -13,7 +13,7 @@ type AdminSummary = {
 }
 
 export function AdminApp() {
-  const [email, setEmail] = useState('admin@example.com')
+  const [email, setEmail] = useState(() => import.meta.env.VITE_ADMIN_EMAIL ?? 'admin@example.com')
   const [password, setPassword] = useState('')
   const [resetCode, setResetCode] = useState('')
   const [newPassword, setNewPassword] = useState('')

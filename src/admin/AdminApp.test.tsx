@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { initialInventory } from '../domain/sampleData'
 import { apiClient } from '../api/client'
 import { AdminApp } from './AdminApp'
@@ -17,6 +17,11 @@ vi.mock('../api/client', () => ({
 }))
 
 describe('AdminApp', () => {
+  afterEach(() => {
+    cleanup()
+    vi.unstubAllEnvs()
+  })
+
   beforeEach(() => {
     vi.mocked(apiClient.login).mockResolvedValue({
       token: 'test-token',
@@ -59,5 +64,14 @@ describe('AdminApp', () => {
     expect(await screen.findByRole('heading', { name: '后台安全登录' })).toBeInTheDocument()
     expect(screen.getByLabelText('邮箱')).toHaveValue('admin@example.com')
     expect(screen.getByLabelText('密码')).toHaveValue('')
+  })
+
+  it('prefills the login email from environment config', async () => {
+    vi.stubEnv('VITE_ADMIN_EMAIL', '49703878@qq.com')
+    vi.mocked(apiClient.getInventory).mockRejectedValueOnce(new Error('Authentication required'))
+
+    render(<AdminApp />)
+
+    expect(await screen.findByLabelText('邮箱')).toHaveValue('49703878@qq.com')
   })
 })
