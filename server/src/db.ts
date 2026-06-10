@@ -13,7 +13,7 @@ export async function query<T extends pg.QueryResultRow>(text: string, values: u
 
 export async function migrate() {
   const currentFile = fileURLToPath(import.meta.url)
-  const schemaPath = path.join(path.dirname(currentFile), 'schema.sql')
+  const schemaPath = path.join(path.dirname(currentFile), '../src/schema.sql')
   const schema = await readFile(schemaPath, 'utf8')
   await pool.query(schema)
 }

@@ -1,10 +1,10 @@
 import bcrypt from 'bcryptjs'
+import { fileURLToPath } from 'node:url'
 import { config } from './config.js'
 import { migrate, pool } from './db.js'
 import { initialInventory } from './seedData.js'
 
-async function seed() {
-  await migrate()
+export async function seedDatabase(options: { closePool?: boolean } = {}) {
   const client = await pool.connect()
 
   try {
@@ -90,11 +90,20 @@ async function seed() {
     throw error
   } finally {
     client.release()
-    await pool.end()
+    if (options.closePool !== false) {
+      await pool.end()
+    }
   }
 }
 
-seed().catch((error) => {
-  console.error(error)
-  process.exit(1)
-})
+async function main() {
+  await migrate()
+  await seedDatabase()
+}
+
+if (fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((error) => {
+    console.error(error)
+    process.exit(1)
+  })
+}

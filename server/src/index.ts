@@ -2,6 +2,9 @@ import cors from 'cors'
 import express from 'express'
 import { config } from './config.js'
 import { errorHandler } from './errors.js'
+import { adminRoutes } from './routes/adminRoutes.js'
+import { authRoutes } from './routes/authRoutes.js'
+import { inventoryRoutes } from './routes/inventoryRoutes.js'
 
 export function createApp() {
   const app = express()
@@ -12,6 +15,10 @@ export function createApp() {
   app.get('/api/health', (_request, response) => {
     response.json({ ok: true })
   })
+
+  app.use('/api/auth', authRoutes)
+  app.use('/api/admin', adminRoutes)
+  app.use('/api', inventoryRoutes)
 
   app.use(errorHandler)
 
