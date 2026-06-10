@@ -14,6 +14,7 @@ server/dist
 dist-ssr
 *.local
 .env
+.worktrees
 
 # Editor directories and files
 .vscode/*
