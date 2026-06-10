@@ -14,20 +14,14 @@ import {
   Users,
 } from 'lucide-react'
 import './App.css'
-import {
-  getLocationLabel,
-  getMemberName,
-  getRecentActiveItems,
-  moveItem,
-  searchItems,
-} from './domain/inventory'
-import { initialInventory } from './domain/sampleData'
-import type { Item } from './domain/types'
+import { getLocationLabel, getMemberName, getRecentActiveItems, searchItems } from './domain/inventory'
+import type { CreateItemInput, InventoryState, Item, MoveItemInput } from './domain/types'
+import { useInventorySync } from './hooks/useInventorySync'
 
 type View = 'home' | 'add' | 'locations' | 'detail'
 
 function App() {
-  const [inventory, setInventory] = useState(initialInventory)
+  const { inventory, loading, error, createItem, moveItem, archiveItem } = useInventorySync()
   const [view, setView] = useState<View>('home')
   const [query, setQuery] = useState('')
   const [selectedItemId, setSelectedItemId] = useState('item-passport')
@@ -43,69 +37,32 @@ function App() {
     setView('detail')
   }
 
-  function addItem(input: {
-    name: string
-    locationId: string
-    category: string
-    note: string
-  }) {
-    const now = new Date().toISOString()
-
-    setInventory((current) => ({
-      ...current,
-      items: [
-        {
-          id: `item-${crypto.randomUUID()}`,
-          name: input.name,
-          locationId: input.locationId,
-          category: input.category || undefined,
-          note: input.note || undefined,
-          createdBy: 'u-me',
-          updatedBy: 'u-me',
-          createdAt: now,
-          updatedAt: now,
-          status: 'active',
-        },
-        ...current.items,
-      ],
-    }))
-    setQuery(input.name)
+  async function addItem(input: CreateItemInput) {
+    const nextName = input.name.trim()
+    await createItem({
+      name: nextName,
+      locationId: input.locationId,
+      category: input.category?.trim() || undefined,
+      note: input.note?.trim() || undefined,
+    })
+    setQuery(nextName)
     setView('home')
   }
 
-  function moveSelectedItem(toLocationId: string) {
+  async function moveSelectedItem(toLocationId: string) {
     if (!selectedItem) {
       return
     }
 
-    setInventory((current) =>
-      moveItem(current, {
-        itemId: selectedItem.id,
-        toLocationId,
-        movedBy: 'u-me',
-        movedAt: new Date().toISOString(),
-      }),
-    )
+    await moveItem(selectedItem.id, { toLocationId } satisfies MoveItemInput)
   }
 
-  function archiveSelectedItem() {
+  async function archiveSelectedItem() {
     if (!selectedItem) {
       return
     }
 
-    setInventory((current) => ({
-      ...current,
-      items: current.items.map((item) =>
-        item.id === selectedItem.id
-          ? {
-              ...item,
-              status: 'archived',
-              updatedAt: new Date().toISOString(),
-              updatedBy: 'u-me',
-            }
-          : item,
-      ),
-    }))
+    await archiveItem(selectedItem.id)
     setView('home')
   }
 
@@ -126,6 +83,11 @@ function App() {
             <Users size={19} aria-hidden="true" />
           </button>
         </header>
+        {(loading || error) && (
+          <div className={error ? 'sync-banner error' : 'sync-banner'} role="status" aria-live="polite">
+            {error ?? '正在同步服务器数据…'}
+          </div>
+        )}
 
         {view === 'home' && (
           <HomeView
@@ -170,9 +132,9 @@ function App() {
 }
 
 function HomeView(props: {
-  commonLocations: typeof initialInventory.locations
+  commonLocations: InventoryState['locations']
   foundCount: number
-  inventory: typeof initialInventory
+  inventory: InventoryState
   query: string
   recentItems: Item[]
   results: ReturnType<typeof searchItems>
@@ -264,28 +226,34 @@ function HomeView(props: {
 }
 
 function AddItemView(props: {
-  inventory: typeof initialInventory
+  inventory: InventoryState
   onCancel: () => void
-  onSave: (input: { name: string; locationId: string; category: string; note: string }) => void
+  onSave: (input: CreateItemInput) => Promise<void>
 }) {
   const [name, setName] = useState('')
   const [locationId, setLocationId] = useState(props.inventory.locations[0]?.id ?? '')
   const [category, setCategory] = useState('')
   const [note, setNote] = useState('')
+  const [saving, setSaving] = useState(false)
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
     if (!name.trim() || !locationId) {
       return
     }
 
-    props.onSave({
-      name: name.trim(),
-      locationId,
-      category: category.trim(),
-      note: note.trim(),
-    })
+    setSaving(true)
+    try {
+      await props.onSave({
+        name: name.trim(),
+        locationId,
+        category: category.trim() || undefined,
+        note: note.trim() || undefined,
+      })
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -338,7 +306,7 @@ function AddItemView(props: {
         <button className="secondary-button" type="button" onClick={props.onCancel}>
           取消
         </button>
-        <button className="primary-button" disabled={!name.trim()} type="submit">
+        <button className="primary-button" disabled={!name.trim() || saving} type="submit">
           保存位置
         </button>
       </div>
@@ -346,7 +314,7 @@ function AddItemView(props: {
   )
 }
 
-function LocationsView(props: { inventory: typeof initialInventory; onDone: () => void }) {
+function LocationsView(props: { inventory: InventoryState; onDone: () => void }) {
   const sortedAreas = [...props.inventory.areas].sort((a, b) => a.sortOrder - b.sortOrder)
 
   return (
@@ -382,11 +350,11 @@ function LocationsView(props: { inventory: typeof initialInventory; onDone: () =
 }
 
 function DetailView(props: {
-  inventory: typeof initialInventory
+  inventory: InventoryState
   item: Item
-  onArchive: () => void
+  onArchive: () => Promise<void>
   onBack: () => void
-  onMove: (toLocationId: string) => void
+  onMove: (toLocationId: string) => Promise<void>
 }) {
   const movements = props.inventory.movements.filter((movement) => movement.itemId === props.item.id)
 
@@ -424,7 +392,7 @@ function DetailView(props: {
               className={location.id === props.item.locationId ? 'move-option active' : 'move-option'}
               key={location.id}
               type="button"
-              onClick={() => props.onMove(location.id)}
+              onClick={() => void props.onMove(location.id)}
             >
               <MapPin size={16} aria-hidden="true" />
               {getLocationLabel(props.inventory, location.id)}
@@ -457,7 +425,7 @@ function DetailView(props: {
         )}
       </section>
 
-      <button className="danger-button full-width" type="button" onClick={props.onArchive}>
+      <button className="danger-button full-width" type="button" onClick={() => void props.onArchive()}>
         <Archive size={17} aria-hidden="true" />
         归档这个物品
       </button>
@@ -466,7 +434,7 @@ function DetailView(props: {
 }
 
 function ItemRow(props: {
-  inventory: typeof initialInventory
+  inventory: InventoryState
   item: Item
   onFound: () => void
   onOpen: () => void

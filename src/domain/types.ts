@@ -64,3 +64,23 @@ export interface ItemSearchResult {
   matchedBy: string[]
 }
 
+export interface CreateItemInput {
+  name: string
+  locationId: string
+  category?: string
+  note?: string
+}
+
+export interface MoveItemInput {
+  toLocationId: string
+  note?: string
+}
+
+export interface LoginResponse {
+  token: string
+  user: {
+    id: string
+    email: string
+    homeId: string
+  }
+}

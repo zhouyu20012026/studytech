@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run --config vitest.config.ts",
     "cap:sync": "npm run build && npx cap sync android",
     "apk:debug": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
     "server:dev": "npm --prefix server run dev",
