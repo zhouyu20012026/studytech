@@ -65,3 +65,35 @@ create table if not exists sessions (
   expires_at timestamptz not null,
   created_at timestamptz not null
 );
+
+create table if not exists password_reset_tokens (
+  id text primary key,
+  user_id text not null references users(id) on delete cascade,
+  token_hash text not null unique,
+  expires_at timestamptz not null,
+  used_at timestamptz,
+  created_at timestamptz not null,
+  request_ip text,
+  request_user_agent text
+);
+
+create table if not exists admin_audit_logs (
+  id text primary key,
+  user_id text references users(id) on delete set null,
+  email text,
+  event_type text not null,
+  outcome text not null,
+  ip text,
+  user_agent text,
+  detail jsonb,
+  created_at timestamptz not null
+);
+
+create table if not exists login_attempts (
+  id text primary key,
+  email text not null,
+  ip text not null,
+  success boolean not null,
+  captcha_required boolean not null default false,
+  created_at timestamptz not null
+);
