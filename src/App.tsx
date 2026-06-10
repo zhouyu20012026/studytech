@@ -21,11 +21,14 @@ import { useInventorySync } from './hooks/useInventorySync'
 type View = 'home' | 'add' | 'locations' | 'detail'
 
 function App() {
-  const { inventory, loading, error, createItem, moveItem, archiveItem } = useInventorySync()
+  const { inventory, loading, error, authRequired, login, createItem, moveItem, archiveItem } = useInventorySync()
   const [view, setView] = useState<View>('home')
   const [query, setQuery] = useState('')
   const [selectedItemId, setSelectedItemId] = useState('item-passport')
   const [foundCount, setFoundCount] = useState(0)
+  const [loginEmail, setLoginEmail] = useState(() => import.meta.env.VITE_ADMIN_EMAIL ?? '')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
 
   const searchResults = useMemo(() => searchItems(inventory, query), [inventory, query])
   const recentItems = useMemo(() => getRecentActiveItems(inventory), [inventory])
@@ -66,6 +69,22 @@ function App() {
     setView('home')
   }
 
+  async function submitLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!loginEmail.trim() || !loginPassword) {
+      return
+    }
+
+    setLoginLoading(true)
+    try {
+      await login(loginEmail.trim(), loginPassword)
+      setLoginPassword('')
+    } finally {
+      setLoginLoading(false)
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="phone-frame" aria-label="找物助手原型">
@@ -87,6 +106,25 @@ function App() {
           <div className={error ? 'sync-banner error' : 'sync-banner'} role="status" aria-live="polite">
             {error ?? '正在同步服务器数据…'}
           </div>
+        )}
+        {authRequired && (
+          <form className="sync-login" onSubmit={submitLogin}>
+            <div>
+              <h2>登录后同步</h2>
+              <p>本机缓存可继续查看，登录后会同步服务器数据。</p>
+            </div>
+            <label>
+              邮箱
+              <input value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} />
+            </label>
+            <label>
+              密码
+              <input type="password" value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} />
+            </label>
+            <button className="primary-button" type="submit" disabled={loginLoading || loading}>
+              登录同步
+            </button>
+          </form>
         )}
 
         {view === 'home' && (

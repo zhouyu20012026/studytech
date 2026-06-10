@@ -2,7 +2,7 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import helmet from 'helmet'
 import express from 'express'
-import { config } from './config.js'
+import { config, corsOrigins } from './config.js'
 import { errorHandler } from './errors.js'
 import { adminRoutes } from './routes/adminRoutes.js'
 import { authRoutes } from './routes/authRoutes.js'
@@ -14,7 +14,17 @@ export function createApp() {
 
   app.set('trust proxy', 1)
   app.use(helmet())
-  app.use(cors({ origin: config.CORS_ORIGIN, credentials: true }))
+  app.use(cors({
+    origin(origin, callback) {
+      if (!origin || corsOrigins.includes(origin)) {
+        callback(null, true)
+        return
+      }
+
+      callback(null, false)
+    },
+    credentials: true,
+  }))
   app.use(cookieParser())
   app.use(express.json({ limit: '1mb' }))
 

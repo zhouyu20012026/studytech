@@ -23,6 +23,12 @@ describe('inventory api', () => {
     expect(response.body.ok).toBe(true)
   })
 
+  it('allows capacitor origins for mobile clients', async () => {
+    const response = await request(app).get('/api/health').set('Origin', 'capacitor://localhost')
+    expect(response.status).toBe(200)
+    expect(response.headers['access-control-allow-origin']).toBe('capacitor://localhost')
+  })
+
   it('rejects inventory requests without a session', async () => {
     const response = await request(app).get('/api/inventory')
     expect(response.status).toBe(401)

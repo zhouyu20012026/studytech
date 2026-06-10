@@ -40,6 +40,9 @@ export const apiClient = {
   logout() {
     localStorage.removeItem(tokenKey)
   },
+  hasToken() {
+    return Boolean(localStorage.getItem(tokenKey))
+  },
   getInventory() {
     return requestJson<InventoryState>('/api/inventory')
   },

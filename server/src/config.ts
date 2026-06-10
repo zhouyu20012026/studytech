@@ -19,3 +19,11 @@ const envSchema = z.object({
 })
 
 export const config = envSchema.parse(process.env)
+
+export const corsOrigins = Array.from(
+  new Set([
+    ...config.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean),
+    'capacitor://localhost',
+    'http://localhost',
+  ]),
+)
