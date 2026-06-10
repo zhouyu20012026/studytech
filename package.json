@@ -10,7 +10,11 @@
     "preview": "vite preview",
     "test": "vitest run",
     "cap:sync": "npm run build && npx cap sync android",
-    "apk:debug": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug"
+    "apk:debug": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "server:dev": "npm --prefix server run dev",
+    "server:build": "npm --prefix server run build",
+    "server:test": "npm --prefix server run test",
+    "server:seed": "npm --prefix server run seed"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
