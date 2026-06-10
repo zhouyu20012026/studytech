@@ -80,7 +80,7 @@ export async function seedDatabase(options: { closePool?: boolean } = {}) {
     await client.query(
       `insert into users (id, email, password_hash, home_id, created_at)
        values ($1, $2, $3, $4, now())
-       on conflict (email) do update set password_hash = excluded.password_hash, home_id = excluded.home_id`,
+       on conflict (id) do update set email = excluded.email, password_hash = excluded.password_hash, home_id = excluded.home_id`,
       ['user-admin', config.ADMIN_EMAIL, passwordHash, initialInventory.home.id],
     )
 
