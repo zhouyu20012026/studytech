@@ -175,6 +175,13 @@
   padding: 10px;
 }
 
+.admin-help {
+  color: #647084;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: -4px 0 0;
+}
+
 .admin-shell button {
   min-height: 36px;
   border: 0;

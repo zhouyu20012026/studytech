@@ -26,6 +26,7 @@ export function AdminApp() {
   const [password, setPassword] = useState('')
   const [resetCode, setResetCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showReset, setShowReset] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [securityLogs, setSecurityLogs] = useState<Array<{ id: string; eventType: string; outcome: string; createdAt: string }>>([])
@@ -105,11 +106,23 @@ export function AdminApp() {
   async function resetPassword(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+
+    if (newPassword.length < 12) {
+      setError('新密码至少需要 12 位')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('两次输入的新密码不一致')
+      return
+    }
+
     try {
       await apiClient.resetPassword(email, resetCode, newPassword)
       setShowReset(false)
       setPassword('')
       setNewPassword('')
+      setConfirmPassword('')
       setResetCode('')
       setError('密码已重置，请使用新密码登录')
     } catch {
@@ -157,6 +170,11 @@ export function AdminApp() {
               <label>
                 新密码
                 <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+              </label>
+              <p className="admin-help">至少 12 位，建议包含字母和数字。</p>
+              <label>
+                确认新密码
+                <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
               </label>
               <button type="submit" disabled={loading}>重置密码</button>
             </>

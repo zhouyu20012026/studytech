@@ -51,4 +51,33 @@ describe('AdminApp security controls', () => {
 
     expect(await screen.findByText('验证码发送失败，请检查发信邮箱 SMTP 授权码')).toBeInTheDocument()
   })
+
+  it('explains password requirements and requires matching confirmation', async () => {
+    const user = userEvent.setup()
+    vi.mocked(apiClient.forgotPassword).mockResolvedValue({ ok: true })
+
+    render(<AdminApp />)
+
+    await screen.findByRole('heading', { name: '后台安全登录' })
+    await user.click(screen.getByRole('button', { name: '忘记密码' }))
+
+    expect(await screen.findByText('至少 12 位，建议包含字母和数字。')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('邮箱验证码'), '123456')
+    await user.type(screen.getByLabelText('新密码'), 'short')
+    await user.type(screen.getByLabelText('确认新密码'), 'short')
+    await user.click(screen.getByRole('button', { name: '重置密码' }))
+
+    expect(await screen.findByText('新密码至少需要 12 位')).toBeInTheDocument()
+    expect(apiClient.resetPassword).not.toHaveBeenCalled()
+
+    await user.clear(screen.getByLabelText('新密码'))
+    await user.clear(screen.getByLabelText('确认新密码'))
+    await user.type(screen.getByLabelText('新密码'), 'new-password-123')
+    await user.type(screen.getByLabelText('确认新密码'), 'new-password-456')
+    await user.click(screen.getByRole('button', { name: '重置密码' }))
+
+    expect(await screen.findByText('两次输入的新密码不一致')).toBeInTheDocument()
+    expect(apiClient.resetPassword).not.toHaveBeenCalled()
+  })
 })
