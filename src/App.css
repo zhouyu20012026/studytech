@@ -80,6 +80,30 @@
   font-weight: 700;
 }
 
+.auth-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.auth-switch button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #315c54;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.auth-switch button.active {
+  background: #315c54;
+  color: #fff;
+}
+
 .brand-button,
 .icon-button,
 .text-button,

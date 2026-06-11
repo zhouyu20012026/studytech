@@ -1,4 +1,4 @@
-import type { CreateItemInput, InventoryState, LoginResponse, MoveItemInput } from '../domain/types'
+import type { CreateItemInput, InventoryState, LoginResponse, MoveItemInput, RegisterStartInput } from '../domain/types'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000'
 const tokenKey = 'home_inventory_token'
@@ -42,6 +42,22 @@ export const apiClient = {
   },
   hasToken() {
     return Boolean(localStorage.getItem(tokenKey))
+  },
+  registerStart(input: RegisterStartInput) {
+    return requestJson<{ ok: boolean }>('/api/auth/register/start', { method: 'POST', body: JSON.stringify(input) })
+  },
+  async registerVerify(email: string, code: string) {
+    const response = await requestJson<LoginResponse>('/api/auth/register/verify', { method: 'POST', body: JSON.stringify({ email, code }) })
+    localStorage.setItem(tokenKey, response.token)
+    return response
+  },
+  getMe() {
+    return requestJson<{
+      user: LoginResponse['user']
+      activeHome: { id: string; name?: string }
+      membership: { id: string; role: string }
+      memberships: Array<{ id: string; homeId: string; homeName: string; displayName: string; role: string; status: string }>
+    }>('/api/me')
   },
   getInventory() {
     return requestJson<InventoryState>('/api/inventory')

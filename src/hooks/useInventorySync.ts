@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiClient } from '../api/client'
 import { initialInventory } from '../domain/sampleData'
-import type { CreateItemInput, InventoryState, MoveItemInput } from '../domain/types'
+import type { CreateItemInput, InventoryState, MoveItemInput, RegisterStartInput } from '../domain/types'
 
 const cacheKey = 'home_inventory_cache'
 
-function readCachedInventory(): InventoryState {
-  const cached = localStorage.getItem(cacheKey)
+function homeCacheKey(homeId: string) {
+  return `${cacheKey}:${homeId}`
+}
+
+function readCachedInventory(homeId?: string | null): InventoryState {
+  const cached = localStorage.getItem(homeId ? homeCacheKey(homeId) : cacheKey)
 
   if (!cached) {
     return initialInventory
@@ -20,7 +24,7 @@ function readCachedInventory(): InventoryState {
 }
 
 function persistInventory(nextInventory: InventoryState) {
-  localStorage.setItem(cacheKey, JSON.stringify(nextInventory))
+  localStorage.setItem(homeCacheKey(nextInventory.home.id), JSON.stringify(nextInventory))
 }
 
 export function useInventorySync() {
@@ -126,5 +130,29 @@ export function useInventorySync() {
     }
   }
 
-  return { inventory, loading, error, authRequired, login, refresh, createItem, moveItem, archiveItem }
+  async function registerStart(input: RegisterStartInput) {
+    setError(null)
+    await apiClient.registerStart(input)
+  }
+
+  async function registerVerify(email: string, code: string) {
+    setLoading(true)
+    setError(null)
+
+    try {
+      await apiClient.registerVerify(email, code)
+      setAuthRequired(false)
+      const nextInventory = await apiClient.getInventory()
+      setInventory(nextInventory)
+      persistInventory(nextInventory)
+    } catch (error) {
+      setAuthRequired(true)
+      setError('注册验证失败，请检查验证码')
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { inventory, loading, error, authRequired, login, registerStart, registerVerify, refresh, createItem, moveItem, archiveItem }
 }

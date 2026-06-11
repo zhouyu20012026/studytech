@@ -12,6 +12,9 @@ vi.mock('../api/client', () => ({
     moveItem: vi.fn(),
     archiveItem: vi.fn(),
     hasToken: vi.fn(),
+    registerStart: vi.fn(),
+    registerVerify: vi.fn(),
+    getMe: vi.fn(),
   },
 }))
 
@@ -37,6 +40,8 @@ describe('useInventorySync', () => {
     vi.mocked(apiClient.login).mockResolvedValue({
       token: 'test-token',
       user: { id: 'user-admin', email: '49703878@qq.com', homeId: 'home-1' },
+      activeHome: { id: 'home-1', name: '周家' },
+      membership: { id: 'membership-admin', homeId: 'home-1', displayName: '管理员', role: 'owner' },
     })
     vi.mocked(apiClient.getInventory).mockResolvedValue(initialInventory)
     const { result } = renderHook(() => useInventorySync())
@@ -50,5 +55,6 @@ describe('useInventorySync', () => {
     expect(apiClient.login).toHaveBeenCalledWith('49703878@qq.com', 'new-password-123')
     expect(result.current.authRequired).toBe(false)
     expect(result.current.error).toBeNull()
+    expect(localStorage.getItem('home_inventory_cache:home-1')).toBeTruthy()
   })
 })

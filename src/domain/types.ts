@@ -82,5 +82,21 @@ export interface LoginResponse {
     id: string
     email: string
     homeId: string
+    isPlatformAdmin?: boolean
   }
+  activeHome?: Home
+  membership?: {
+    id: string
+    homeId: string
+    displayName: string
+    role: MemberRole | 'owner'
+  }
+}
+
+export interface RegisterStartInput {
+  email: string
+  password: string
+  displayName: string
+  homeName?: string
+  inviteCode?: string
 }

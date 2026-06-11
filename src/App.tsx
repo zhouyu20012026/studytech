@@ -19,15 +19,24 @@ import type { CreateItemInput, InventoryState, Item, MoveItemInput } from './dom
 import { useInventorySync } from './hooks/useInventorySync'
 
 type View = 'home' | 'add' | 'locations' | 'detail'
+type AuthMode = 'login' | 'register'
+type RegisterMode = 'create' | 'join'
 
 function App() {
-  const { inventory, loading, error, authRequired, login, createItem, moveItem, archiveItem } = useInventorySync()
+  const { inventory, loading, error, authRequired, login, registerStart, registerVerify, createItem, moveItem, archiveItem } = useInventorySync()
   const [view, setView] = useState<View>('home')
+  const [authMode, setAuthMode] = useState<AuthMode>('login')
+  const [registerMode, setRegisterMode] = useState<RegisterMode>('create')
   const [query, setQuery] = useState('')
   const [selectedItemId, setSelectedItemId] = useState('item-passport')
   const [foundCount, setFoundCount] = useState(0)
   const [loginEmail, setLoginEmail] = useState(() => import.meta.env.VITE_ADMIN_EMAIL ?? '')
   const [loginPassword, setLoginPassword] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [homeName, setHomeName] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
+  const [verificationCode, setVerificationCode] = useState('')
+  const [awaitingCode, setAwaitingCode] = useState(false)
   const [loginLoading, setLoginLoading] = useState(false)
 
   const searchResults = useMemo(() => searchItems(inventory, query), [inventory, query])
@@ -85,6 +94,36 @@ function App() {
     }
   }
 
+  async function submitRegister(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!loginEmail.trim() || !loginPassword || !displayName.trim()) {
+      return
+    }
+
+    setLoginLoading(true)
+    try {
+      if (!awaitingCode) {
+        await registerStart({
+          email: loginEmail.trim(),
+          password: loginPassword,
+          displayName: displayName.trim(),
+          homeName: registerMode === 'create' ? homeName.trim() : undefined,
+          inviteCode: registerMode === 'join' ? inviteCode.trim() : undefined,
+        })
+        setAwaitingCode(true)
+        return
+      }
+
+      await registerVerify(loginEmail.trim(), verificationCode.trim())
+      setLoginPassword('')
+      setVerificationCode('')
+      setAwaitingCode(false)
+    } finally {
+      setLoginLoading(false)
+    }
+  }
+
   return (
     <main className="app-shell">
       <section className="phone-frame" aria-label="找物助手原型">
@@ -107,11 +146,15 @@ function App() {
             {error ?? '正在同步服务器数据…'}
           </div>
         )}
-        {authRequired && (
+        {authRequired && authMode === 'login' && (
           <form className="sync-login" onSubmit={submitLogin}>
             <div>
               <h2>登录后同步</h2>
               <p>本机缓存可继续查看，登录后会同步服务器数据。</p>
+            </div>
+            <div className="auth-switch" role="group" aria-label="登录或注册">
+              <button className="active" type="button">登录</button>
+              <button type="button" onClick={() => setAuthMode('register')}>注册</button>
             </div>
             <label>
               邮箱
@@ -123,6 +166,60 @@ function App() {
             </label>
             <button className="primary-button" type="submit" disabled={loginLoading || loading}>
               登录同步
+            </button>
+          </form>
+        )}
+        {authRequired && authMode === 'register' && (
+          <form className="sync-login" onSubmit={submitRegister}>
+            <div>
+              <h2>注册家庭账号</h2>
+              <p>{awaitingCode ? '验证码已发送到邮箱。' : '创建自己的家庭空间，或用邀请码加入已有家庭。'}</p>
+            </div>
+            <div className="auth-switch" role="group" aria-label="登录或注册">
+              <button type="button" onClick={() => setAuthMode('login')}>登录</button>
+              <button className="active" type="button">注册</button>
+            </div>
+            {!awaitingCode && (
+              <div className="auth-switch" role="group" aria-label="注册方式">
+                <button className={registerMode === 'create' ? 'active' : ''} type="button" onClick={() => setRegisterMode('create')}>创建家庭</button>
+                <button className={registerMode === 'join' ? 'active' : ''} type="button" onClick={() => setRegisterMode('join')}>邀请码加入</button>
+              </div>
+            )}
+            <label>
+              邮箱
+              <input value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} disabled={awaitingCode} />
+            </label>
+            {!awaitingCode && (
+              <>
+                <label>
+                  密码
+                  <input type="password" value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} />
+                </label>
+                <label>
+                  昵称
+                  <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+                </label>
+                {registerMode === 'create' ? (
+                  <label>
+                    家庭名称
+                    <input value={homeName} onChange={(event) => setHomeName(event.target.value)} />
+                  </label>
+                ) : (
+                  <label>
+                    邀请码
+                    <input value={inviteCode} onChange={(event) => setInviteCode(event.target.value)} />
+                  </label>
+                )}
+              </>
+            )}
+            {awaitingCode && (
+              <label>
+                邮箱验证码
+                <input value={verificationCode} onChange={(event) => setVerificationCode(event.target.value)} />
+              </label>
+            )}
+            <button className="primary-button" type="submit" disabled={loginLoading || loading}>
+              {awaitingCode ? '完成注册' : '发送验证码'}
             </button>
           </form>
         )}
