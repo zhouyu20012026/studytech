@@ -9,6 +9,7 @@ import { authRoutes } from './routes/authRoutes.js'
 import { homeRoutes } from './routes/homeRoutes.js'
 import { inventoryRoutes } from './routes/inventoryRoutes.js'
 import { passwordRoutes } from './routes/passwordRoutes.js'
+import { platformRoutes } from './routes/platformRoutes.js'
 import { registrationRoutes } from './routes/registrationRoutes.js'
 
 export function createApp() {
@@ -39,6 +40,7 @@ export function createApp() {
   app.use('/api/auth', registrationRoutes)
   app.use('/api/admin', adminRoutes)
   app.use('/api', homeRoutes)
+  app.use('/api/platform', platformRoutes)
   app.use('/api', inventoryRoutes)
 
   app.use(errorHandler)

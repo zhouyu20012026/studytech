@@ -197,4 +197,22 @@ describe('multi-home platform auth context', () => {
     expect(inventory.body.home.name).toBe('隔离家庭')
     expect(inventory.body.items.some((item: { id: string }) => item.id === 'item-passport')).toBe(false)
   })
+
+  it('returns platform summary for platform admins only', async () => {
+    const adminLogin = await login()
+    const adminResponse = await request(app).get('/api/platform/summary').set('Authorization', `Bearer ${adminLogin.body.token}`)
+
+    expect(adminResponse.status).toBe(200)
+    expect(adminResponse.body).toMatchObject({
+      users: expect.any(Number),
+      homes: expect.any(Number),
+      memberships: expect.any(Number),
+      items: expect.any(Number),
+      recentAuditEvents: expect.any(Number),
+    })
+
+    const memberLogin = await request(app).post('/api/auth/login').send({ email: 'invited@example.com', password: 'new-password-123' })
+    const memberResponse = await request(app).get('/api/platform/summary').set('Authorization', `Bearer ${memberLogin.body.token}`)
+    expect(memberResponse.status).toBe(403)
+  })
 })
