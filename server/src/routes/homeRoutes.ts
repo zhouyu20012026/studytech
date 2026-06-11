@@ -13,8 +13,13 @@ homeRoutes.use(requireAuth)
 
 const invitationSchema = z.object({
   role: z.enum(['admin', 'member']).default('member'),
-  expiresInDays: z.number().int().min(1).max(30).default(7),
+  expiresInDays: z.number().int().min(1).max(30).default(1),
   maxUses: z.number().int().min(1).max(100).default(1),
+})
+
+const memberUpdateSchema = z.object({
+  displayName: z.string().min(1).max(80).optional(),
+  role: z.enum(['admin', 'member']).optional(),
 })
 
 async function loadCurrentMembership(homeId: string, membershipId: string) {
@@ -103,6 +108,78 @@ homeRoutes.get('/homes/:homeId/members', async (request, response, next) => {
       [request.params.homeId],
     )
     response.json(result.rows)
+  } catch (error) {
+    next(error)
+  }
+})
+
+homeRoutes.patch('/homes/:homeId/members/:membershipId', async (request, response, next) => {
+  try {
+    const current = await loadCurrentMembership(request.params.homeId, request.user!.membershipId)
+    if (!current) {
+      throw notFound('Home not found')
+    }
+    assertAdminMembership(current)
+
+    const input = memberUpdateSchema.parse(request.body)
+    const existing = await query<{ id: string; role: 'owner' | 'admin' | 'member' }>(
+      'select id, role from home_memberships where id = $1 and home_id = $2',
+      [request.params.membershipId, request.params.homeId],
+    )
+    if (!existing.rows[0]) {
+      throw notFound('Member not found')
+    }
+    if (existing.rows[0].role === 'owner' && input.role) {
+      throw new ApiError('cannot_change_owner_role', 'Owner role cannot be changed', 400)
+    }
+
+    const result = await query<{ id: string; displayName: string; role: string; status: string }>(
+      `update home_memberships
+          set display_name = coalesce($1, display_name), role = coalesce($2, role)
+        where id = $3 and home_id = $4
+        returning id, display_name as "displayName", role, status`,
+      [input.displayName ?? null, input.role ?? null, request.params.membershipId, request.params.homeId],
+    )
+    await query(
+      `update members
+          set name = $1, role = case when $2 = 'member' then 'member' else 'admin' end
+        where id = $3`,
+      [result.rows[0].displayName, result.rows[0].role, request.params.membershipId],
+    )
+
+    response.json(result.rows[0])
+  } catch (error) {
+    next(error)
+  }
+})
+
+homeRoutes.post('/homes/:homeId/members/:membershipId/disable', async (request, response, next) => {
+  try {
+    const current = await loadCurrentMembership(request.params.homeId, request.user!.membershipId)
+    if (!current) {
+      throw notFound('Home not found')
+    }
+    assertAdminMembership(current)
+
+    const existing = await query<{ id: string; role: 'owner' | 'admin' | 'member' }>(
+      'select id, role from home_memberships where id = $1 and home_id = $2',
+      [request.params.membershipId, request.params.homeId],
+    )
+    if (!existing.rows[0]) {
+      throw notFound('Member not found')
+    }
+    if (existing.rows[0].role === 'owner') {
+      throw new ApiError('cannot_disable_owner', 'Owner cannot be disabled', 400)
+    }
+
+    const result = await query<{ id: string; status: string }>(
+      `update home_memberships set status = 'disabled'
+        where id = $1 and home_id = $2
+        returning id, status`,
+      [request.params.membershipId, request.params.homeId],
+    )
+    await query('delete from sessions where user_id = (select user_id from home_memberships where id = $1)', [request.params.membershipId])
+    response.json(result.rows[0])
   } catch (error) {
     next(error)
   }

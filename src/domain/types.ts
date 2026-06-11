@@ -22,7 +22,14 @@ export interface Location {
   id: string
   areaId: string
   name: string
+  description?: string
   isCommon: boolean
+}
+
+export interface ItemCategory {
+  id: string
+  name: string
+  status: 'active' | 'disabled'
 }
 
 export interface Item {
@@ -54,6 +61,7 @@ export interface InventoryState {
   members: Member[]
   areas: Area[]
   locations: Location[]
+  categories?: ItemCategory[]
   items: Item[]
   movements: Movement[]
 }

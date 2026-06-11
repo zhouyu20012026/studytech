@@ -18,6 +18,10 @@ vi.mock('../api/client', () => ({
     getSecurityLogs: vi.fn(),
     getHomeMembers: vi.fn(),
     createInvitation: vi.fn(),
+    updateHomeMember: vi.fn(),
+    disableHomeMember: vi.fn(),
+    createCategory: vi.fn(),
+    createLocation: vi.fn(),
   },
 }))
 

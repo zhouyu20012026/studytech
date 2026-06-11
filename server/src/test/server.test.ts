@@ -86,4 +86,22 @@ describe('inventory api', () => {
     expect(archiveResponse.status).toBe(200)
     expect(archiveResponse.body.items.find((item: { id: string }) => item.id === createdItem.id).status).toBe('archived')
   })
+
+  it('creates categories and locations with descriptions for admin management', async () => {
+    const categoryResponse = await request(app)
+      .post('/api/categories')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: '证件资料' })
+
+    expect(categoryResponse.status).toBe(201)
+    expect(categoryResponse.body.categories).toContainEqual(expect.objectContaining({ name: '证件资料', status: 'active' }))
+
+    const locationResponse = await request(app)
+      .post('/api/locations')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ areaId: 'area-entry', name: '测试位置', description: '门口左侧柜子第二层', isCommon: true })
+
+    expect(locationResponse.status).toBe(201)
+    expect(locationResponse.body.locations).toContainEqual(expect.objectContaining({ name: '测试位置', description: '门口左侧柜子第二层' }))
+  })
 })

@@ -14,6 +14,10 @@ vi.mock('../api/client', () => ({
     getSecurityLogs: vi.fn(),
     getHomeMembers: vi.fn(),
     createInvitation: vi.fn(),
+    updateHomeMember: vi.fn(),
+    disableHomeMember: vi.fn(),
+    createCategory: vi.fn(),
+    createLocation: vi.fn(),
     archiveItem: vi.fn(),
   },
 }))
@@ -40,10 +44,18 @@ describe('AdminApp', () => {
     vi.mocked(apiClient.getSecurityLogs).mockResolvedValue([])
     vi.mocked(apiClient.getHomeMembers).mockResolvedValue([
       { id: 'membership-admin', displayName: '管理员', email: 'admin@example.com', role: 'owner', status: 'active', createdAt: '2026-06-11T00:00:00.000Z' },
+      { id: 'membership-member', displayName: '成员甲', email: 'member@example.com', role: 'member', status: 'active', createdAt: '2026-06-11T00:00:00.000Z' },
     ])
     vi.mocked(apiClient.createInvitation).mockResolvedValue({
       code: 'invite-code',
       invitation: { id: 'invite-1', homeId: 'home-1', role: 'member', expiresAt: '2026-06-18T00:00:00.000Z', maxUses: 1, usedCount: 0 },
+    })
+    vi.mocked(apiClient.updateHomeMember).mockResolvedValue({ id: 'membership-member', displayName: '成员乙', role: 'admin', status: 'active' })
+    vi.mocked(apiClient.disableHomeMember).mockResolvedValue({ id: 'membership-member', status: 'disabled' })
+    vi.mocked(apiClient.createCategory).mockResolvedValue({ ...initialInventory, categories: [{ id: 'cat-1', name: '证件资料', status: 'active' }] })
+    vi.mocked(apiClient.createLocation).mockResolvedValue({
+      ...initialInventory,
+      locations: [...initialInventory.locations, { id: 'loc-test', areaId: 'area-entry', name: '测试位置', description: '门口左侧柜子第二层', isCommon: true }],
     })
     vi.mocked(apiClient.archiveItem).mockResolvedValue(initialInventory)
   })
@@ -59,13 +71,13 @@ describe('AdminApp', () => {
     expect(screen.getByRole('cell', { name: '护照' })).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: '卧室 - 床头柜第一层' })).toBeInTheDocument()
 
-    await user.click(screen.getAllByRole('button', { name: '归档' })[0])
+    await user.click(screen.getAllByRole('button', { name: '隐藏' })[0])
 
     expect(apiClient.archiveItem).toHaveBeenCalledWith('item-passport')
     await waitFor(() => expect(apiClient.getInventory).toHaveBeenCalledTimes(2))
   })
 
-  it('shows members and creates an invitation code', async () => {
+  it('shows members, edits members, and creates a one-day invitation code', async () => {
     const user = userEvent.setup()
 
     render(<AdminApp />)
@@ -73,11 +85,39 @@ describe('AdminApp', () => {
     expect(await screen.findByRole('heading', { name: '成员与邀请' })).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: '管理员' })).toBeInTheDocument()
     expect(screen.getByRole('cell', { name: 'admin@example.com' })).toBeInTheDocument()
+    expect(screen.getByText('默认 1 天，仅限制邀请码使用时间；成员加入后长期有效，可在成员管理中禁用。')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: '生成邀请码' }))
 
-    expect(apiClient.createInvitation).toHaveBeenCalledWith('home-1', { role: 'member', expiresInDays: 7, maxUses: 1 })
+    expect(apiClient.createInvitation).toHaveBeenCalledWith('home-1', { role: 'member', expiresInDays: 1, maxUses: 1 })
     expect(await screen.findByText('invite-code')).toBeInTheDocument()
+
+    await user.clear(screen.getByLabelText('昵称-member@example.com'))
+    await user.type(screen.getByLabelText('昵称-member@example.com'), '成员乙')
+    await user.selectOptions(screen.getByLabelText('角色-member@example.com'), 'admin')
+    await user.click(screen.getAllByRole('button', { name: '保存' })[1])
+    expect(apiClient.updateHomeMember).toHaveBeenCalledWith('home-1', 'membership-member', { displayName: '成员乙', role: 'admin' })
+
+    await user.click(screen.getAllByRole('button', { name: '禁用' })[1])
+    expect(apiClient.disableHomeMember).toHaveBeenCalledWith('home-1', 'membership-member')
+  })
+
+  it('shows category and location management without security logs', async () => {
+    const user = userEvent.setup()
+
+    render(<AdminApp />)
+
+    expect(await screen.findByRole('heading', { name: '类别与位置' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '安全日志' })).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('类别名称'), '证件资料')
+    await user.click(screen.getByRole('button', { name: '保存类别' }))
+    expect(apiClient.createCategory).toHaveBeenCalledWith({ name: '证件资料' })
+
+    await user.type(screen.getByLabelText('位置名称'), '测试位置')
+    await user.type(screen.getByLabelText('位置描述'), '门口左侧柜子第二层')
+    await user.click(screen.getByRole('button', { name: '保存位置' }))
+    expect(apiClient.createLocation).toHaveBeenCalledWith({ areaId: 'area-entry', name: '测试位置', description: '门口左侧柜子第二层', isCommon: true })
   })
 
   it('shows the login form when the server rejects the initial load', async () => {

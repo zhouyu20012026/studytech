@@ -106,6 +106,15 @@ export const apiClient = {
   getHomeMembers(homeId: string) {
     return requestJson<Array<{ id: string; displayName: string; email: string; role: string; status: string; createdAt: string }>>(`/api/homes/${homeId}/members`)
   },
+  updateHomeMember(homeId: string, membershipId: string, input: { displayName?: string; role?: 'admin' | 'member' }) {
+    return requestJson<{ id: string; displayName: string; role: string; status: string }>(`/api/homes/${homeId}/members/${membershipId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    })
+  },
+  disableHomeMember(homeId: string, membershipId: string) {
+    return requestJson<{ id: string; status: string }>(`/api/homes/${homeId}/members/${membershipId}/disable`, { method: 'POST' })
+  },
   createInvitation(homeId: string, input: { role: 'admin' | 'member'; expiresInDays: number; maxUses: number }) {
     return requestJson<{
       code: string
@@ -114,5 +123,11 @@ export const apiClient = {
   },
   getPlatformSummary() {
     return requestJson<{ users: number; homes: number; memberships: number; items: number; recentAuditEvents: number }>('/api/platform/summary')
+  },
+  createLocation(input: { areaId: string; name: string; description?: string; isCommon: boolean }) {
+    return requestJson<InventoryState>('/api/locations', { method: 'POST', body: JSON.stringify(input) })
+  },
+  createCategory(input: { name: string }) {
+    return requestJson<InventoryState>('/api/categories', { method: 'POST', body: JSON.stringify(input) })
   },
 }

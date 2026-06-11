@@ -29,6 +29,17 @@ create table if not exists locations (
   is_common boolean not null default false
 );
 
+alter table locations add column if not exists description text;
+
+create table if not exists item_categories (
+  id text primary key,
+  home_id text not null references homes(id) on delete cascade,
+  name text not null,
+  status text not null check (status in ('active', 'disabled')) default 'active',
+  created_at timestamptz not null,
+  unique (home_id, name)
+);
+
 create table if not exists items (
   id text primary key,
   home_id text not null references homes(id) on delete cascade,

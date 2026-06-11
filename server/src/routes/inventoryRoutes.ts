@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { requireAuth } from '../auth.js'
-import { archiveItem, createItem, createLocation, getInventory, moveItem } from '../inventoryRepository.js'
+import { archiveItem, createCategory, createItem, createLocation, getInventory, moveItem } from '../inventoryRepository.js'
 
 export const inventoryRoutes = Router()
 
@@ -61,11 +61,22 @@ inventoryRoutes.post('/locations', async (request, response, next) => {
       .object({
         areaId: z.string().min(1),
         name: z.string().min(1),
+        description: z.string().optional(),
         isCommon: z.boolean().default(false),
       })
       .parse(request.body)
 
     response.status(201).json(await createLocation(request.user!.homeId, input))
+  } catch (error) {
+    next(error)
+  }
+})
+
+inventoryRoutes.post('/categories', async (request, response, next) => {
+  try {
+    const input = z.object({ name: z.string().min(1) }).parse(request.body)
+
+    response.status(201).json(await createCategory(request.user!.homeId, input))
   } catch (error) {
     next(error)
   }

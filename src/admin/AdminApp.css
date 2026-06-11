@@ -116,13 +116,21 @@
 
 .admin-login input,
 .invite-form input,
-.invite-form select {
+.invite-form select,
+.admin-panel td input,
+.admin-panel td select {
   height: 40px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   color: #172033;
   font: inherit;
   padding: 0 10px;
+}
+
+.admin-panel td input,
+.admin-panel td select {
+  width: 100%;
+  min-width: 96px;
 }
 
 .invite-form {
@@ -155,6 +163,21 @@
   color: #1d4ed8;
   padding: 10px;
   font-weight: 800;
+}
+
+.compact-list {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: #334155;
+  font-size: 13px;
+}
+
+.danger-inline {
+  background: #b42318 !important;
+  margin-left: 8px;
 }
 
 .admin-error {

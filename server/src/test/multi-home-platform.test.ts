@@ -18,7 +18,7 @@ describe('multi-home platform auth context', () => {
     await pool.query('delete from sessions')
     await pool.query('delete from email_verification_tokens where email like $1', ['%@example.com'])
     await pool.query("delete from homes where name in ('张三家', '王五家', '隔离家庭')")
-    await pool.query("delete from users where email in ('new-family@example.com', 'verified-family@example.com', 'invited@example.com', 'isolated@example.com')")
+    await pool.query("delete from users where email in ('new-family@example.com', 'verified-family@example.com', 'invited@example.com', 'isolated@example.com', 'managed-member@example.com')")
   })
 
   afterAll(async () => {
@@ -141,6 +141,21 @@ describe('multi-home platform auth context', () => {
     expect(stored.rows[0].code_hash).not.toBe(response.body.code)
   })
 
+  it('defaults invitation expiry to one day', async () => {
+    const loginResponse = await login()
+
+    const response = await request(app)
+      .post('/api/homes/home-1/invitations')
+      .set('Authorization', `Bearer ${loginResponse.body.token}`)
+      .send({ role: 'member', maxUses: 1 })
+
+    expect(response.status).toBe(201)
+    const expiresAt = new Date(response.body.invitation.expiresAt).getTime()
+    const now = Date.now()
+    expect(expiresAt - now).toBeGreaterThan(23 * 60 * 60 * 1000)
+    expect(expiresAt - now).toBeLessThan(25 * 60 * 60 * 1000)
+  })
+
   it('registers a new user into an invited household', async () => {
     const ownerLogin = await login()
     const invite = await request(app)
@@ -214,5 +229,40 @@ describe('multi-home platform auth context', () => {
     const memberLogin = await request(app).post('/api/auth/login').send({ email: 'invited@example.com', password: 'new-password-123' })
     const memberResponse = await request(app).get('/api/platform/summary').set('Authorization', `Bearer ${memberLogin.body.token}`)
     expect(memberResponse.status).toBe(403)
+  })
+
+  it('updates and disables household members', async () => {
+    const ownerLogin = await login()
+    const invite = await request(app)
+      .post('/api/homes/home-1/invitations')
+      .set('Authorization', `Bearer ${ownerLogin.body.token}`)
+      .send({ role: 'member', expiresInDays: 1, maxUses: 1 })
+
+    await request(app).post('/api/auth/register/start').send({
+      email: 'managed-member@example.com',
+      password: 'new-password-123',
+      displayName: '原昵称',
+      inviteCode: invite.body.code,
+    })
+    const token = await pool.query<{ token_hash: string }>('select token_hash from email_verification_tokens where email = $1 order by created_at desc limit 1', ['managed-member@example.com'])
+    const joined = await request(app).post('/api/auth/register/verify').send({ email: 'managed-member@example.com', code: token.rows[0].token_hash })
+
+    const update = await request(app)
+      .patch(`/api/homes/home-1/members/${joined.body.membership.id}`)
+      .set('Authorization', `Bearer ${ownerLogin.body.token}`)
+      .send({ displayName: '新昵称', role: 'admin' })
+
+    expect(update.status).toBe(200)
+    expect(update.body).toMatchObject({ displayName: '新昵称', role: 'admin' })
+
+    const disabled = await request(app)
+      .post(`/api/homes/home-1/members/${joined.body.membership.id}/disable`)
+      .set('Authorization', `Bearer ${ownerLogin.body.token}`)
+
+    expect(disabled.status).toBe(200)
+    expect(disabled.body.status).toBe('disabled')
+
+    const blocked = await request(app).get('/api/inventory').set('Authorization', `Bearer ${joined.body.token}`)
+    expect(blocked.status).toBe(401)
   })
 })

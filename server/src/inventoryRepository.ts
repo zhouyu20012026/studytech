@@ -8,6 +8,7 @@ type InventoryHome = { id: string; name: string }
 type InventoryMember = { id: string; name: string; role: 'admin' | 'member' }
 type InventoryArea = { id: string; name: string; sortOrder: number }
 type InventoryLocation = { id: string; areaId: string; name: string; isCommon: boolean }
+type InventoryCategory = { id: string; name: string; status: 'active' | 'disabled' }
 type InventoryItem = {
   id: string
   name: string
@@ -32,7 +33,7 @@ type InventoryMovement = {
 }
 
 export async function getInventory(homeId: string) {
-  const [home, members, areas, locations, items, movements] = await Promise.all([
+  const [home, members, areas, locations, categories, items, movements] = await Promise.all([
     query<InventoryHome>('select id, name from homes where id = $1', [homeId]),
     query<InventoryMember>(
       `with membership_members as (
@@ -60,7 +61,8 @@ export async function getInventory(homeId: string) {
       [homeId],
     ),
     query<InventoryArea>('select id, name, sort_order as "sortOrder" from areas where home_id = $1 order by sort_order', [homeId]),
-    query<InventoryLocation>('select id, area_id as "areaId", name, is_common as "isCommon" from locations where home_id = $1 order by name', [homeId]),
+    query<InventoryLocation & { description: string | null }>('select id, area_id as "areaId", name, description, is_common as "isCommon" from locations where home_id = $1 order by name', [homeId]),
+    query<InventoryCategory>('select id, name, status from item_categories where home_id = $1 order by name', [homeId]),
     query<InventoryItem>(
       `select id, name, category, note, image_url as "imageUrl", location_id as "locationId",
         created_by as "createdBy", updated_by as "updatedBy", created_at as "createdAt",
@@ -85,6 +87,7 @@ export async function getInventory(homeId: string) {
     members: members.rows,
     areas: areas.rows,
     locations: locations.rows,
+    categories: categories.rows,
     items: items.rows,
     movements: movements.rows,
   }
@@ -147,10 +150,20 @@ export async function archiveItem(homeId: string, itemId: string, memberId: stri
   return getInventory(homeId)
 }
 
-export async function createLocation(homeId: string, input: { areaId: string; name: string; isCommon: boolean }) {
+export async function createLocation(homeId: string, input: { areaId: string; name: string; description?: string; isCommon: boolean }) {
   await query(
-    'insert into locations (id, home_id, area_id, name, is_common) values ($1, $2, $3, $4, $5)',
-    [`loc-${randomUUID()}`, homeId, input.areaId, input.name, input.isCommon],
+    'insert into locations (id, home_id, area_id, name, description, is_common) values ($1, $2, $3, $4, $5, $6)',
+    [`loc-${randomUUID()}`, homeId, input.areaId, input.name, input.description ?? null, input.isCommon],
+  )
+  return getInventory(homeId)
+}
+
+export async function createCategory(homeId: string, input: { name: string }) {
+  await query(
+    `insert into item_categories (id, home_id, name, status, created_at)
+     values ($1, $2, $3, 'active', now())
+     on conflict (home_id, name) do update set status = 'active'`,
+    [`cat-${randomUUID()}`, homeId, input.name],
   )
   return getInventory(homeId)
 }

@@ -39,8 +39,8 @@ export function createApp() {
   app.use('/api/auth', passwordRoutes)
   app.use('/api/auth', registrationRoutes)
   app.use('/api/admin', adminRoutes)
-  app.use('/api', homeRoutes)
   app.use('/api/platform', platformRoutes)
+  app.use('/api', homeRoutes)
   app.use('/api', inventoryRoutes)
 
   app.use(errorHandler)
