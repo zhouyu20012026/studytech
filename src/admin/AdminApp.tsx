@@ -158,9 +158,15 @@ export function AdminApp() {
     if (!categoryName.trim()) {
       return
     }
-    const nextInventory = await apiClient.createCategory({ name: categoryName.trim() })
-    setInventory(nextInventory)
-    setCategoryName('')
+    setError(null)
+    try {
+      const nextInventory = await apiClient.createCategory({ name: categoryName.trim() })
+      setInventory(nextInventory)
+      setCategoryName('')
+      setNotice('类别已保存')
+    } catch {
+      setError('保存类别失败，请稍后重试')
+    }
   }
 
   async function createLocation(event: React.FormEvent<HTMLFormElement>) {
@@ -168,15 +174,21 @@ export function AdminApp() {
     if (!locationAreaId || !locationName.trim()) {
       return
     }
-    const nextInventory = await apiClient.createLocation({
-      areaId: locationAreaId,
-      name: locationName.trim(),
-      description: locationDescription.trim() || undefined,
-      isCommon: true,
-    })
-    setInventory(nextInventory)
-    setLocationName('')
-    setLocationDescription('')
+    setError(null)
+    try {
+      const nextInventory = await apiClient.createLocation({
+        areaId: locationAreaId,
+        name: locationName.trim(),
+        description: locationDescription.trim() || undefined,
+        isCommon: true,
+      })
+      setInventory(nextInventory)
+      setLocationName('')
+      setLocationDescription('')
+      setNotice('位置已保存')
+    } catch {
+      setError('保存位置失败，请稍后重试')
+    }
   }
 
   async function createInvitation(event: React.FormEvent<HTMLFormElement>) {
@@ -248,6 +260,8 @@ export function AdminApp() {
           刷新
         </button>
       </header>
+      {notice && <p className="admin-notice admin-toast">{notice}</p>}
+      {error && <p className="admin-error admin-toast">{error}</p>}
 
       <section className="admin-metrics" aria-label="库存指标">
         <article>

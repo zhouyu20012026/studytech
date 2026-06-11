@@ -198,6 +198,11 @@
   padding: 10px;
 }
 
+.admin-toast {
+  width: min(1120px, 100%);
+  margin: 0 auto 16px;
+}
+
 .admin-help {
   color: #647084;
   font-size: 13px;

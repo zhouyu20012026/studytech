@@ -113,11 +113,25 @@ describe('AdminApp', () => {
     await user.type(screen.getByLabelText('类别名称'), '证件资料')
     await user.click(screen.getByRole('button', { name: '保存类别' }))
     expect(apiClient.createCategory).toHaveBeenCalledWith({ name: '证件资料' })
+    expect(await screen.findByText('类别已保存')).toBeInTheDocument()
 
     await user.type(screen.getByLabelText('位置名称'), '测试位置')
     await user.type(screen.getByLabelText('位置描述'), '门口左侧柜子第二层')
     await user.click(screen.getByRole('button', { name: '保存位置' }))
     expect(apiClient.createLocation).toHaveBeenCalledWith({ areaId: 'area-entry', name: '测试位置', description: '门口左侧柜子第二层', isCommon: true })
+    expect(await screen.findByText('位置已保存')).toBeInTheDocument()
+  })
+
+  it('shows a visible success toast in the admin view after saving a location', async () => {
+    const user = userEvent.setup()
+
+    render(<AdminApp />)
+
+    await screen.findByRole('heading', { name: '周家后台' })
+    await user.type(screen.getByLabelText('位置名称'), '测试位置')
+    await user.click(screen.getByRole('button', { name: '保存位置' }))
+
+    expect(await screen.findByText('位置已保存')).toBeInTheDocument()
   })
 
   it('shows the login form when the server rejects the initial load', async () => {
