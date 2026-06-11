@@ -12,6 +12,15 @@ type AdminSummary = {
   recentMovements: InventoryState['movements']
 }
 
+type HomeMember = {
+  id: string
+  displayName: string
+  email: string
+  role: string
+  status: string
+  createdAt: string
+}
+
 export function AdminApp() {
   const [email, setEmail] = useState(() => import.meta.env.VITE_ADMIN_EMAIL ?? 'admin@example.com')
   const [password, setPassword] = useState('')
@@ -19,6 +28,11 @@ export function AdminApp() {
   const [newPassword, setNewPassword] = useState('')
   const [showReset, setShowReset] = useState(false)
   const [securityLogs, setSecurityLogs] = useState<Array<{ id: string; eventType: string; outcome: string; createdAt: string }>>([])
+  const [members, setMembers] = useState<HomeMember[]>([])
+  const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member')
+  const [inviteMaxUses, setInviteMaxUses] = useState(1)
+  const [inviteDays, setInviteDays] = useState(7)
+  const [inviteCode, setInviteCode] = useState('')
   const [inventory, setInventory] = useState<InventoryState | null>(null)
   const [summary, setSummary] = useState<AdminSummary | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -32,13 +46,20 @@ export function AdminApp() {
     setError(null)
 
     try {
-      const [nextInventory, nextSummary, nextLogs] = await Promise.all([apiClient.getInventory(), apiClient.getAdminSummary(), apiClient.getSecurityLogs().catch(() => [])])
+      const nextInventory = await apiClient.getInventory()
+      const [nextSummary, nextLogs, nextMembers] = await Promise.all([
+        apiClient.getAdminSummary(),
+        apiClient.getSecurityLogs().catch(() => []),
+        apiClient.getHomeMembers(nextInventory.home.id).catch(() => []),
+      ])
       setInventory(nextInventory)
       setSummary(nextSummary)
       setSecurityLogs(nextLogs)
+      setMembers(nextMembers)
     } catch {
       setInventory(null)
       setSummary(null)
+      setMembers([])
       setError('无法读取服务器数据，请先登录')
     } finally {
       setLoading(false)
@@ -88,6 +109,21 @@ export function AdminApp() {
   async function archive(itemId: string) {
     await apiClient.archiveItem(itemId)
     await load()
+  }
+
+  async function createInvitation(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!inventory) {
+      return
+    }
+
+    setInviteCode('')
+    const response = await apiClient.createInvitation(inventory.home.id, {
+      role: inviteRole,
+      expiresInDays: inviteDays,
+      maxUses: inviteMaxUses,
+    })
+    setInviteCode(response.code)
   }
 
   if (!inventory) {
@@ -190,6 +226,57 @@ export function AdminApp() {
               ))}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="admin-panel">
+        <div className="admin-panel-title">
+          <h2>成员与邀请</h2>
+          <span>{members.length} 个账号</span>
+        </div>
+        <div className="admin-split">
+          <div className="admin-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>昵称</th>
+                  <th>邮箱</th>
+                  <th>角色</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((member) => (
+                  <tr key={member.id}>
+                    <td>{member.displayName}</td>
+                    <td>{member.email}</td>
+                    <td>{member.role}</td>
+                    <td>{member.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <form className="invite-form" onSubmit={createInvitation}>
+            <h3>创建邀请码</h3>
+            <label>
+              角色
+              <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as 'admin' | 'member')}>
+                <option value="member">成员</option>
+                <option value="admin">管理员</option>
+              </select>
+            </label>
+            <label>
+              有效天数
+              <input type="number" min={1} max={30} value={inviteDays} onChange={(event) => setInviteDays(Number(event.target.value))} />
+            </label>
+            <label>
+              可用次数
+              <input type="number" min={1} max={100} value={inviteMaxUses} onChange={(event) => setInviteMaxUses(Number(event.target.value))} />
+            </label>
+            <button type="submit">生成邀请码</button>
+            {inviteCode && <output className="invite-code">{inviteCode}</output>}
+          </form>
         </div>
       </section>
 

@@ -15,6 +15,8 @@ vi.mock('../api/client', () => ({
     changePassword: vi.fn(),
     logoutAll: vi.fn(),
     getSecurityLogs: vi.fn(),
+    getHomeMembers: vi.fn(),
+    createInvitation: vi.fn(),
   },
 }))
 
@@ -22,6 +24,7 @@ describe('AdminApp security controls', () => {
   beforeEach(() => {
     vi.mocked(apiClient.getInventory).mockRejectedValue(new Error('Authentication required'))
     vi.mocked(apiClient.getSecurityLogs).mockResolvedValue([])
+    vi.mocked(apiClient.getHomeMembers).mockResolvedValue([])
   })
 
   it('shows secure login and forgot-password entry points', async () => {

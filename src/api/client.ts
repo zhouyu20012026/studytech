@@ -103,4 +103,16 @@ export const apiClient = {
       recentMovements: InventoryState['movements']
     }>('/api/admin/summary')
   },
+  getHomeMembers(homeId: string) {
+    return requestJson<Array<{ id: string; displayName: string; email: string; role: string; status: string; createdAt: string }>>(`/api/homes/${homeId}/members`)
+  },
+  createInvitation(homeId: string, input: { role: 'admin' | 'member'; expiresInDays: number; maxUses: number }) {
+    return requestJson<{
+      code: string
+      invitation: { id: string; homeId: string; role: string; expiresAt: string; maxUses: number; usedCount: number }
+    }>(`/api/homes/${homeId}/invitations`, { method: 'POST', body: JSON.stringify(input) })
+  },
+  getPlatformSummary() {
+    return requestJson<{ users: number; homes: number; memberships: number; items: number; recentAuditEvents: number }>('/api/platform/summary')
+  },
 }

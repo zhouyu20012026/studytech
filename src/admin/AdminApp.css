@@ -73,6 +73,13 @@
   overflow-x: auto;
 }
 
+.admin-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 16px;
+  align-items: start;
+}
+
 .admin-panel table {
   width: 100%;
   min-width: 760px;
@@ -107,13 +114,47 @@
   font-size: 14px;
 }
 
-.admin-login input {
+.admin-login input,
+.invite-form input,
+.invite-form select {
   height: 40px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   color: #172033;
   font: inherit;
   padding: 0 10px;
+}
+
+.invite-form {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e5eaf1;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.invite-form h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.invite-form label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.invite-code {
+  display: block;
+  overflow-wrap: anywhere;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 10px;
+  font-weight: 800;
 }
 
 .admin-error {
@@ -178,6 +219,10 @@
 
   .movement-list li {
     display: grid;
+  }
+
+  .admin-split {
+    grid-template-columns: 1fr;
   }
 }
 

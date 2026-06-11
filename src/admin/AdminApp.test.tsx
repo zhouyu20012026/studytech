@@ -12,6 +12,8 @@ vi.mock('../api/client', () => ({
     getInventory: vi.fn(),
     getAdminSummary: vi.fn(),
     getSecurityLogs: vi.fn(),
+    getHomeMembers: vi.fn(),
+    createInvitation: vi.fn(),
     archiveItem: vi.fn(),
   },
 }))
@@ -36,6 +38,13 @@ describe('AdminApp', () => {
       recentMovements: initialInventory.movements,
     })
     vi.mocked(apiClient.getSecurityLogs).mockResolvedValue([])
+    vi.mocked(apiClient.getHomeMembers).mockResolvedValue([
+      { id: 'membership-admin', displayName: '管理员', email: 'admin@example.com', role: 'owner', status: 'active', createdAt: '2026-06-11T00:00:00.000Z' },
+    ])
+    vi.mocked(apiClient.createInvitation).mockResolvedValue({
+      code: 'invite-code',
+      invitation: { id: 'invite-1', homeId: 'home-1', role: 'member', expiresAt: '2026-06-18T00:00:00.000Z', maxUses: 1, usedCount: 0 },
+    })
     vi.mocked(apiClient.archiveItem).mockResolvedValue(initialInventory)
   })
 
@@ -54,6 +63,21 @@ describe('AdminApp', () => {
 
     expect(apiClient.archiveItem).toHaveBeenCalledWith('item-passport')
     await waitFor(() => expect(apiClient.getInventory).toHaveBeenCalledTimes(2))
+  })
+
+  it('shows members and creates an invitation code', async () => {
+    const user = userEvent.setup()
+
+    render(<AdminApp />)
+
+    expect(await screen.findByRole('heading', { name: '成员与邀请' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: '管理员' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'admin@example.com' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '生成邀请码' }))
+
+    expect(apiClient.createInvitation).toHaveBeenCalledWith('home-1', { role: 'member', expiresInDays: 7, maxUses: 1 })
+    expect(await screen.findByText('invite-code')).toBeInTheDocument()
   })
 
   it('shows the login form when the server rejects the initial load', async () => {
