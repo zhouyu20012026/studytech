@@ -2,7 +2,8 @@ import { Router } from 'express'
 import { z } from 'zod'
 import { ApiError, unauthorized } from '../errors.js'
 import { clearSessionCookie, createSession, getRequestToken, requireAuth, revokeSession, setSessionCookie, verifyPassword } from '../auth.js'
-import { query } from '../db.js'
+import { pool, query } from '../db.js'
+import { getActiveMembershipForUser } from '../memberships.js'
 import { writeAuditLog } from '../security/auditRepository.js'
 import { recordLoginAttempt, shouldRequireCaptcha } from '../security/rateLimitRepository.js'
 
@@ -31,13 +32,14 @@ authRoutes.post('/login', async (request, response, next) => {
       throw new ApiError('captcha_required', 'Captcha required', 403)
     }
 
-    const result = await query<{ id: string; email: string; passwordHash: string; homeId: string }>(
-      'select id, email, password_hash as "passwordHash", home_id as "homeId" from users where email = $1',
-      [input.email],
+    const result = await query<{ id: string; email: string; passwordHash: string; isPlatformAdmin: boolean }>(
+      'select id, email, password_hash as "passwordHash", is_platform_admin as "isPlatformAdmin" from users where email = $1 and status = $2',
+      [input.email, 'active'],
     )
     const user = result.rows[0]
+    const membership = user ? await getActiveMembershipForUser(pool, user.id) : null
 
-    if (!user || !(await verifyPassword(input.password, user.passwordHash))) {
+    if (!user || !membership || !(await verifyPassword(input.password, user.passwordHash))) {
       await recordLoginAttempt({ email: input.email, ip, success: false, captchaRequired })
       await writeAuditLog({ email: input.email, eventType: 'login_failure', outcome: 'failed', ip, userAgent })
       throw unauthorized('Invalid email or password')
@@ -46,9 +48,15 @@ authRoutes.post('/login', async (request, response, next) => {
     await recordLoginAttempt({ email: input.email, ip, success: true, captchaRequired })
     await writeAuditLog({ userId: user.id, email: user.email, eventType: 'login_success', outcome: 'ok', ip, userAgent })
 
-    const token = await createSession(user.id)
+    const token = await createSession(user.id, membership.homeId)
     setSessionCookie(response, token)
-    response.json({ token, user: { id: user.id, email: user.email, homeId: user.homeId }, captchaRequired: false })
+    response.json({
+      token,
+      user: { id: user.id, email: user.email, homeId: membership.homeId, isPlatformAdmin: user.isPlatformAdmin },
+      activeHome: { id: membership.homeId, name: membership.homeName },
+      membership: { id: membership.id, homeId: membership.homeId, displayName: membership.displayName, role: membership.role },
+      captchaRequired: false,
+    })
   } catch (error) {
     next(error)
   }

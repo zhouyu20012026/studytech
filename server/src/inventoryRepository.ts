@@ -34,7 +34,31 @@ type InventoryMovement = {
 export async function getInventory(homeId: string) {
   const [home, members, areas, locations, items, movements] = await Promise.all([
     query<InventoryHome>('select id, name from homes where id = $1', [homeId]),
-    query<InventoryMember>('select id, name, role from members where home_id = $1 order by name', [homeId]),
+    query<InventoryMember>(
+      `with membership_members as (
+         select id, display_name as name, case when role = 'member' then 'member' else 'admin' end as role
+           from home_memberships
+          where home_id = $1 and status = 'active'
+       ),
+       legacy_actor_members as (
+         select members.id, members.name, members.role
+           from members
+          where members.home_id = $1
+            and members.id in (
+              select created_by from items where home_id = $1
+              union
+              select updated_by from items where home_id = $1
+              union
+              select moved_by from movements where home_id = $1
+            )
+            and not exists (select 1 from membership_members where membership_members.id = members.id)
+       )
+       select id, name, role from membership_members
+       union all
+       select id, name, role from legacy_actor_members
+       order by name`,
+      [homeId],
+    ),
     query<InventoryArea>('select id, name, sort_order as "sortOrder" from areas where home_id = $1 order by sort_order', [homeId]),
     query<InventoryLocation>('select id, area_id as "areaId", name, is_common as "isCommon" from locations where home_id = $1 order by name', [homeId]),
     query<InventoryItem>(

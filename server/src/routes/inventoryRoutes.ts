@@ -26,7 +26,7 @@ inventoryRoutes.post('/items', async (request, response, next) => {
       })
       .parse(request.body)
 
-    response.status(201).json(await createItem(request.user!.homeId, { ...input, memberId: 'u-me' }))
+    response.status(201).json(await createItem(request.user!.homeId, { ...input, memberId: request.user!.membershipId }))
   } catch (error) {
     next(error)
   }
@@ -41,7 +41,7 @@ inventoryRoutes.post('/items/:id/move', async (request, response, next) => {
       })
       .parse(request.body)
 
-    response.json(await moveItem(request.user!.homeId, request.params.id, { ...input, memberId: 'u-me' }))
+    response.json(await moveItem(request.user!.homeId, request.params.id, { ...input, memberId: request.user!.membershipId }))
   } catch (error) {
     next(error)
   }
@@ -49,7 +49,7 @@ inventoryRoutes.post('/items/:id/move', async (request, response, next) => {
 
 inventoryRoutes.post('/items/:id/archive', async (request, response, next) => {
   try {
-    response.json(await archiveItem(request.user!.homeId, request.params.id, 'u-me'))
+    response.json(await archiveItem(request.user!.homeId, request.params.id, request.user!.membershipId))
   } catch (error) {
     next(error)
   }
