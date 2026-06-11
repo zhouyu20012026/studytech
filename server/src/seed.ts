@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import { fileURLToPath } from 'node:url'
 import { config } from './config.js'
 import { migrate, pool } from './db.js'
+import { createMembership } from './memberships.js'
 import { initialInventory } from './seedData.js'
 
 export async function seedDatabase(options: { closePool?: boolean } = {}) {
@@ -10,9 +11,10 @@ export async function seedDatabase(options: { closePool?: boolean } = {}) {
   try {
     await client.query('begin')
 
-    await client.query('insert into homes (id, name) values ($1, $2) on conflict (id) do update set name = excluded.name', [
+    await client.query('insert into homes (id, name, status, created_at) values ($1, $2, $3, now()) on conflict (id) do update set name = excluded.name, status = excluded.status', [
       initialInventory.home.id,
       initialInventory.home.name,
+      'active',
     ])
 
     for (const member of initialInventory.members) {
@@ -78,11 +80,22 @@ export async function seedDatabase(options: { closePool?: boolean } = {}) {
 
     const passwordHash = await bcrypt.hash(config.ADMIN_PASSWORD, 12)
     await client.query(
-      `insert into users (id, email, password_hash, home_id, created_at)
-       values ($1, $2, $3, $4, now())
-       on conflict (id) do update set email = excluded.email, password_hash = excluded.password_hash, home_id = excluded.home_id`,
+      `insert into users (id, email, password_hash, home_id, created_at, status, is_platform_admin, email_verified_at)
+       values ($1, $2, $3, $4, now(), 'active', true, now())
+       on conflict (id) do update set email = excluded.email, password_hash = excluded.password_hash,
+         home_id = excluded.home_id, status = 'active', is_platform_admin = true,
+         email_verified_at = coalesce(users.email_verified_at, now())`,
       ['user-admin', config.ADMIN_EMAIL, passwordHash, initialInventory.home.id],
     )
+
+    await client.query('update homes set created_by_user_id = $1 where id = $2 and created_by_user_id is null', ['user-admin', initialInventory.home.id])
+    await createMembership(client, {
+      id: 'membership-admin',
+      homeId: initialInventory.home.id,
+      userId: 'user-admin',
+      displayName: '管理员',
+      role: 'owner',
+    })
 
     await client.query('commit')
   } catch (error) {
