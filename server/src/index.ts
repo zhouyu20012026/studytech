@@ -6,6 +6,7 @@ import { config, corsOrigins } from './config.js'
 import { errorHandler } from './errors.js'
 import { adminRoutes } from './routes/adminRoutes.js'
 import { authRoutes } from './routes/authRoutes.js'
+import { homeRoutes } from './routes/homeRoutes.js'
 import { inventoryRoutes } from './routes/inventoryRoutes.js'
 import { passwordRoutes } from './routes/passwordRoutes.js'
 import { registrationRoutes } from './routes/registrationRoutes.js'
@@ -37,6 +38,7 @@ export function createApp() {
   app.use('/api/auth', passwordRoutes)
   app.use('/api/auth', registrationRoutes)
   app.use('/api/admin', adminRoutes)
+  app.use('/api', homeRoutes)
   app.use('/api', inventoryRoutes)
 
   app.use(errorHandler)

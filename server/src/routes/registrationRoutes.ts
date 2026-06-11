@@ -7,6 +7,7 @@ import { config } from '../config.js'
 import { pool, query } from '../db.js'
 import { ApiError } from '../errors.js'
 import { createMembership } from '../memberships.js'
+import { redeemInvitation } from './homeRoutes.js'
 import { writeAuditLog } from '../security/auditRepository.js'
 import { sendRegistrationEmail } from '../security/emailService.js'
 import { hashSecurityToken, makeEmailCode } from '../security/tokenService.js'
@@ -63,6 +64,23 @@ async function seedStarterLocations(client: { query: typeof pool.query }, homeId
   }
 }
 
+async function lookupInvitationHomeId(client: { query: typeof pool.query }, inviteCode: string) {
+  const result = await client.query<{ homeId: string }>(
+    `select home_id as "homeId"
+       from home_invitations
+      where code_hash = $1
+        and disabled_at is null
+        and expires_at > now()
+        and used_count < max_uses`,
+    [hashSecurityToken(inviteCode)],
+  )
+  const invitation = result.rows[0]
+  if (!invitation) {
+    throw new ApiError('invalid_invitation', 'Invalid or expired invitation', 400)
+  }
+  return invitation.homeId
+}
+
 registrationRoutes.post('/register/start', async (request, response, next) => {
   try {
     const input = registerStartSchema.parse(request.body)
@@ -115,10 +133,7 @@ registrationRoutes.post('/register/verify', async (request, response, next) => {
     if (!token) {
       throw new ApiError('invalid_registration_code', 'Invalid or expired registration code', 400)
     }
-    if (token.payload.inviteCode) {
-      throw new ApiError('invite_registration_not_ready', 'Invitation registration is not available yet', 400)
-    }
-    if (!token.payload.homeName) {
+    if (!token.payload.homeName && !token.payload.inviteCode) {
       throw new ApiError('invalid_registration_payload', 'Home name is required', 400)
     }
 
@@ -128,36 +143,44 @@ registrationRoutes.post('/register/verify', async (request, response, next) => {
     }
 
     const userId = `user-${randomUUID()}`
-    const homeId = `home-${randomUUID()}`
-    await client.query('insert into homes (id, name, status, created_at) values ($1, $2, $3, now())', [
-      homeId,
-      token.payload.homeName,
-      'active',
-    ])
+    const homeId = token.payload.homeName ? `home-${randomUUID()}` : await lookupInvitationHomeId(client, token.payload.inviteCode!)
+    if (token.payload.homeName) {
+      await client.query('insert into homes (id, name, status, created_at) values ($1, $2, $3, now())', [
+        homeId,
+        token.payload.homeName,
+        'active',
+      ])
+    }
     await client.query(
       `insert into users (id, email, password_hash, home_id, created_at, status, is_platform_admin, email_verified_at)
        values ($1, $2, $3, $4, now(), 'active', false, now())`,
       [userId, input.email, token.payload.passwordHash, homeId],
     )
-    await client.query('update homes set created_by_user_id = $1 where id = $2', [userId, homeId])
-    const membership = await createMembership(client, {
-      homeId,
-      userId,
-      displayName: token.payload.displayName,
-      role: 'owner',
-    })
-    await seedStarterLocations(client, homeId)
+    const membership = token.payload.inviteCode
+      ? await redeemInvitation(client, { inviteCode: token.payload.inviteCode, userId, displayName: token.payload.displayName })
+      : await (async () => {
+          await client.query('update homes set created_by_user_id = $1 where id = $2', [userId, homeId])
+          const ownerMembership = await createMembership(client, {
+            homeId,
+            userId,
+            displayName: token.payload.displayName,
+            role: 'owner',
+          })
+          await seedStarterLocations(client, homeId)
+          return ownerMembership
+        })()
+    const activeHome = await client.query<{ id: string; name: string }>('select id, name from homes where id = $1', [membership.homeId])
     await client.query('update email_verification_tokens set used_at = now() where id = $1', [token.id])
     await client.query('commit')
 
     await writeAuditLog({ userId, email: input.email, eventType: 'registration_verified', outcome: 'ok', ip: ipOf(request), userAgent: request.get('user-agent') ?? null })
-    const tokenValue = await createSession(userId, homeId)
+    const tokenValue = await createSession(userId, membership.homeId)
     setSessionCookie(response, tokenValue)
     response.json({
       token: tokenValue,
-      user: { id: userId, email: input.email, homeId, isPlatformAdmin: false },
-      activeHome: { id: homeId, name: token.payload.homeName },
-      membership: { id: membership.id, homeId, displayName: membership.displayName, role: membership.role },
+      user: { id: userId, email: input.email, homeId: membership.homeId, isPlatformAdmin: false },
+      activeHome: activeHome.rows[0],
+      membership: { id: membership.id, homeId: membership.homeId, displayName: membership.displayName, role: membership.role },
     })
   } catch (error) {
     await client.query('rollback').catch(() => undefined)
