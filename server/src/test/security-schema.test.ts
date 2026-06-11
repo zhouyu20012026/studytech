@@ -51,6 +51,22 @@ describe('security schema', () => {
     expect(result.rows[0].email).toBe('49703878@qq.com')
   })
 
+  it('does not overwrite an existing seeded admin password', async () => {
+    await seedDatabase({ closePool: false })
+
+    const changedPasswordHash = await bcrypt.hash('changed-password-123', 12)
+    await pool.query('update users set password_hash = $1 where id = $2', [changedPasswordHash, 'user-admin'])
+
+    vi.stubEnv('ADMIN_PASSWORD', 'another-default-password')
+    vi.resetModules()
+    const { seedDatabase: seedWithChangedPasswordEnv } = await import('../seed.js')
+    await seedWithChangedPasswordEnv({ closePool: false })
+
+    const result = await pool.query<{ passwordHash: string }>('select password_hash as "passwordHash" from users where id = $1', ['user-admin'])
+    expect(await bcrypt.compare('changed-password-123', result.rows[0].passwordHash)).toBe(true)
+    expect(await bcrypt.compare('another-default-password', result.rows[0].passwordHash)).toBe(false)
+  })
+
   it('seeds the admin as platform admin and default home owner', async () => {
     await seedDatabase({ closePool: false })
 

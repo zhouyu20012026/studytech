@@ -46,7 +46,7 @@ export function AdminApp() {
   const activeItems = useMemo(() => inventory?.items.filter((item) => item.status === 'active') ?? [], [inventory])
   const recentMovements = summary?.recentMovements ?? inventory?.movements.slice(0, 8) ?? []
 
-  async function load() {
+  async function load(options: { afterLogin?: boolean } = {}) {
     setLoading(true)
     setError(null)
 
@@ -64,7 +64,7 @@ export function AdminApp() {
       setInventory(null)
       setSummary(null)
       setMembers([])
-      setError('无法读取服务器数据，请先登录')
+      setError(options.afterLogin ? '登录成功，但后台数据读取失败，请稍后刷新或联系管理员' : '无法读取服务器数据，请先登录')
     } finally {
       setLoading(false)
     }
@@ -81,7 +81,7 @@ export function AdminApp() {
 
     try {
       await apiClient.login(email, password)
-      await load()
+      await load({ afterLogin: true })
     } catch {
       setError('登录失败，请检查邮箱和密码')
     } finally {

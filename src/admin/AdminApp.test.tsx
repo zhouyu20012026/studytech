@@ -130,6 +130,23 @@ describe('AdminApp', () => {
     expect(screen.getByLabelText('密码')).toHaveValue('')
   })
 
+  it('does not report a password error when login succeeds but data loading fails', async () => {
+    const user = userEvent.setup()
+    vi.mocked(apiClient.getInventory)
+      .mockRejectedValueOnce(new Error('Authentication required'))
+      .mockRejectedValueOnce(new Error('Database migration missing'))
+
+    render(<AdminApp />)
+
+    await screen.findByRole('heading', { name: '后台安全登录' })
+    await user.type(screen.getByLabelText('密码'), 'correct-password')
+    await user.click(screen.getByRole('button', { name: '登录' }))
+
+    expect(apiClient.login).toHaveBeenCalledWith('admin@example.com', 'correct-password')
+    expect(await screen.findByText('登录成功，但后台数据读取失败，请稍后刷新或联系管理员')).toBeInTheDocument()
+    expect(screen.queryByText('登录失败，请检查邮箱和密码')).not.toBeInTheDocument()
+  })
+
   it('prefills the login email from environment config', async () => {
     vi.stubEnv('VITE_ADMIN_EMAIL', '49703878@qq.com')
     vi.mocked(apiClient.getInventory).mockRejectedValueOnce(new Error('Authentication required'))

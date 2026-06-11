@@ -2,7 +2,9 @@ import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import helmet from 'helmet'
 import express from 'express'
+import { fileURLToPath } from 'node:url'
 import { config, corsOrigins } from './config.js'
+import { migrate } from './db.js'
 import { errorHandler } from './errors.js'
 import { adminRoutes } from './routes/adminRoutes.js'
 import { authRoutes } from './routes/authRoutes.js'
@@ -48,8 +50,16 @@ export function createApp() {
   return app
 }
 
-if (process.env.NODE_ENV !== 'test') {
-  createApp().listen(config.PORT, () => {
+export async function startServer() {
+  await migrate()
+  return createApp().listen(config.PORT, () => {
     console.log(`Home inventory API listening on ${config.PORT}`)
+  })
+}
+
+if (process.env.NODE_ENV !== 'test' && fileURLToPath(import.meta.url) === process.argv[1]) {
+  startServer().catch((error) => {
+    console.error('Database migration failed before API startup', error)
+    process.exit(1)
   })
 }
