@@ -7,6 +7,8 @@ export type AuditEventType =
   | 'password_reset_requested'
   | 'password_reset_success'
   | 'password_change_success'
+  | 'registration_started'
+  | 'registration_verified'
   | 'logout'
   | 'logout_all'
 
