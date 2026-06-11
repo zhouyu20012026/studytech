@@ -22,7 +22,7 @@ type HomeMember = {
 }
 
 export function AdminApp() {
-  const [email, setEmail] = useState(() => import.meta.env.VITE_ADMIN_EMAIL ?? 'admin@example.com')
+  const [email, setEmail] = useState(() => import.meta.env.VITE_ADMIN_EMAIL ?? '49703878@qq.com')
   const [password, setPassword] = useState('')
   const [resetCode, setResetCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -97,7 +97,7 @@ export function AdminApp() {
     try {
       await apiClient.forgotPassword(email)
       setShowReset(true)
-      setNotice('验证码已发送，请查看邮箱')
+      setNotice(`验证码已发送至 ${email}，请查看收件箱和垃圾邮件`)
     } catch {
       setError('验证码发送失败，请检查发信邮箱 SMTP 授权码')
     } finally {
