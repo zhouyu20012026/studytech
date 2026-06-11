@@ -27,6 +27,7 @@ export function AdminApp() {
   const [resetCode, setResetCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [showReset, setShowReset] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
   const [securityLogs, setSecurityLogs] = useState<Array<{ id: string; eventType: string; outcome: string; createdAt: string }>>([])
   const [members, setMembers] = useState<HomeMember[]>([])
   const [inviteRole, setInviteRole] = useState<'admin' | 'member'>('member')
@@ -87,8 +88,18 @@ export function AdminApp() {
 
   async function requestReset() {
     setError(null)
-    await apiClient.forgotPassword(email)
-    setShowReset(true)
+    setNotice(null)
+    setLoading(true)
+
+    try {
+      await apiClient.forgotPassword(email)
+      setShowReset(true)
+      setNotice('验证码已发送，请查看邮箱')
+    } catch {
+      setError('验证码发送失败，请检查发信邮箱 SMTP 授权码')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function resetPassword(event: React.FormEvent<HTMLFormElement>) {
@@ -132,6 +143,7 @@ export function AdminApp() {
         <form className="admin-login" onSubmit={showReset ? resetPassword : login}>
           <h1>后台安全登录</h1>
           {error && <p className="admin-error">{error}</p>}
+          {notice && <p className="admin-notice">{notice}</p>}
           <label>
             邮箱
             <input value={email} onChange={(event) => setEmail(event.target.value)} />
